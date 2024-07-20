@@ -31,5 +31,6 @@ cargo run --release -- <service> <country> [--target_folder <target_folder>]
 To extract QWAC CA certificates for QTSPs based in Germany and save them in the certs folder, run:
 
 ```
+cd ca_extractor/
 cargo run --release -- QWAC DE --target_folder certs
 ```
