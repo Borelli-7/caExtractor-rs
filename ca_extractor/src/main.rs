@@ -1,26 +1,8 @@
-use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::io::Read;
-use std::path::Path;
 
 use reqwest;
 use xml::reader::{EventReader, XmlEvent};
-
-struct NamespaceContext {
-    namespaces: HashMap<&'static str, &'static str>,
-}
-
-impl NamespaceContext {
-    fn new() -> Self {
-        let namespaces = HashMap::from([("tsl", "http://uri.etsi.org/02231/v2#")]);
-        NamespaceContext { namespaces }
-    }
-
-    fn get_namespace_uri(&self, prefix: &str) -> Option<&&str> {
-        self.namespaces.get(prefix)
-    }
-}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
@@ -38,10 +20,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "."
     };
 
-    let service_uri = match service.as_str() {
-        "QWAC" => "http://uri.etsi.org/TrstSvc/TrustedList/SvcInfoExt/ForWebSiteAuthentication",
-        "QSealC" => "http://uri.etsi.org/TrstSvc/TrustedList/SvcInfoExt/ForeSeals",
-        _ => panic!("Invalid service type. Must be 'QWAC' or 'QSealC'."),
+    // Validate service type
+    match service.as_str() {
+        "QWAC" | "QSealC" => {},
+        _ => return Err(format!("Invalid service type '{}'. Must be 'QWAC' or 'QSealC'.", service).into()),
     };
 
     let url = format!(
@@ -50,8 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     let response = reqwest::blocking::get(&url)?;
-    let mut xml_content = String::new();
-    response.read_to_string(&mut xml_content)?;
+    let xml_content = response.text()?;
 
     let parser = EventReader::new(xml_content.as_bytes());
     let mut current_element = String::new();
