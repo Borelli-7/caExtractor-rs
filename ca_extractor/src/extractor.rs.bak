@@ -73,7 +73,24 @@ impl CertificateExtractor {
         
         Ok(content)
     }
-
+        
+        if content_type.contains("json") {
+            return Err(CaExtractorError::CertificateExtractionError(
+                format!("API returned JSON instead of XML. Response starts with: {}", 
+                    &content.chars().take(100).collect::<String>())
+            ));
+        }
+        
+        if !content.trim().starts_with("<?xml") && !content.trim().starts_with("<") {
+            return Err(CaExtractorError::CertificateExtractionError(
+                format!("Invalid XML response. Response starts with: {}", 
+                    &content.chars().take(100).collect::<String>())
+            ));
+        }
+        
+        Ok(content)
+    }
+    
     pub fn extract_certificates(&self, xml_content: &str) -> Result<Vec<String>, CaExtractorError> {
         // First check if the content is valid XML
         if !xml_content.trim().starts_with("<?xml") && !xml_content.trim().starts_with("<") {
@@ -109,36 +126,6 @@ impl CertificateExtractor {
             }
         }
         
-        // For tests, use direct certificate extraction
-        if xml_content.contains("<tsl:X509Certificate>") {
-            let mut certificates = Vec::new();
-            let parts: Vec<&str> = xml_content.split("<tsl:X509Certificate>").collect();
-            
-            for (i, part) in parts.iter().enumerate() {
-                if i == 0 { continue; } // Skip first part (before first certificate)
-                
-                if let Some(cert_end) = part.find("</tsl:X509Certificate>") {
-                    let cert_content = &part[0..cert_end].trim().replace([' ', '\n'], "");
-                    
-                    let wrapped_cert_str = format!(
-                        "-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----\n",
-                        cert_content
-                            .as_bytes()
-                            .chunks(64)
-                            .map(|chunk| std::str::from_utf8(chunk).unwrap())
-                            .collect::<Vec<&str>>()
-                            .join("\n")
-                    );
-                    
-                    certificates.push(wrapped_cert_str);
-                }
-            }
-            
-            if !certificates.is_empty() {
-                return Ok(certificates);
-            }
-        }
-        
         let mut certificates = Vec::new();
         
         for element in elements {
@@ -162,10 +149,8 @@ impl CertificateExtractor {
         }
         
         if certificates.is_empty() {
-            return Err(CaExtractorError::NoCertificatesFound {
-                country: self.country.clone(),
-                service: "Certificate".to_string()
-            });
+            return Err(CaExtractorError::CertificateExtractionError(
+                "No certificates found in the XML content".to_string()));
         }
         
         Ok(certificates)

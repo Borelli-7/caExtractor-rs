@@ -26,4 +26,10 @@ pub enum CaExtractorError {
 
     #[error("Invalid certificate format: {0}")]
     InvalidCertificateFormat(String),
+    
+    #[error("Invalid API response format: {0}")]
+    InvalidResponseFormat(String),
+    
+    #[error("API returned error: {status} - {message}")]
+    ApiError { status: u16, message: String },
 }
